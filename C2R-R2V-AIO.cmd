@@ -1200,8 +1200,4 @@ echo.
 echo Press any key to exit...
 if %_Debug% EQU 1 goto :eof
 pause >nul
-<<<<<<< HEAD
 goto :eof
-=======
-goto :eof
->>>>>>> caeb0abe165b0a16c9515085d2ebf882687b6e29
