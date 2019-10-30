@@ -449,7 +449,7 @@ call :InsLic Standard%_tag%
 for %%a in (ProjectPro,VisioPro,ProjectStd,VisioStd) do if !_%%a2019! equ 1 (
 echo %%a 2019 SKU
 echo.
-if defined tag (call :InsLic %%a2019) else (call :InsLic %%a)
+if defined _tag (call :InsLic %%a2019) else (call :InsLic %%a)
 )
 for %%a in (ProjectPro,VisioPro,ProjectStd,VisioStd) do if !_%%a! equ 1 (
 if !_%%a2019! equ 0 (
