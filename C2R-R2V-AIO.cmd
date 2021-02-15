@@ -1,5 +1,5 @@
 @setlocal DisableDelayedExpansion
-@set uivr=v12 AIO
+@set uivr=v13 AIO
 @echo off
 :: Licenses used for converting Office 365 ProPlus:
 :: set _O365asO2019=0 -> use Office 2016 Mondo (if you want some Office 365 features)
@@ -14,18 +14,29 @@ set _Cnvrt=1
 
 :: ##################################################################
 
+set "_cmdf=%~f0"
+if exist "%SystemRoot%\Sysnative\cmd.exe" (
+setlocal EnableDelayedExpansion
+start %SystemRoot%\Sysnative\cmd.exe /c ""!_cmdf!" "
+exit /b
+)
+if exist "%SystemRoot%\SysArm32\cmd.exe" if /i %PROCESSOR_ARCHITECTURE%==AMD64 (
+setlocal EnableDelayedExpansion
+start %SystemRoot%\SysArm32\cmd.exe /c ""!_cmdf!" "
+exit /b
+)
 set "SysPath=%SystemRoot%\System32"
 if exist "%SystemRoot%\Sysnative\reg.exe" (set "SysPath=%SystemRoot%\Sysnative")
 set "Path=%SysPath%;%SystemRoot%;%SysPath%\Wbem;%SystemRoot%\System32\WindowsPowerShell\v1.0\"
 set "_ln============================================================="
 set "_err===== ERROR ===="
-set "_psc=powershell -noprofile -exec bypass -c"
-set "xBit=amd64"
-if /i %PROCESSOR_ARCHITECTURE%==x86 (if not defined PROCESSOR_ARCHITEW6432 (
-  set "xBit=x86"
-  )
-)
+if /i "%PROCESSOR_ARCHITECTURE%"=="amd64" set "xBit=x64"
+if /i "%PROCESSOR_ARCHITECTURE%"=="arm64" set "xBit=x86"
+if /i "%PROCESSOR_ARCHITECTURE%"=="x86" if "%PROCESSOR_ARCHITEW6432%"=="" set "xBit=x86"
+if /i "%PROCESSOR_ARCHITEW6432%"=="amd64" set "xBit=x64"
+if /i "%PROCESSOR_ARCHITEW6432%"=="arm64" set "xBit=x86"
 
+set "_psc=powershell -noprofile -c"
 if not exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" goto :E_PS
 
 if %_Cnvrt% NEQ 1 set _Debug=1
@@ -43,7 +54,7 @@ set "_log=%~dpn0"
 set "_work=%~dp0"
 if "%_work:~-1%"=="\" set "_work=%_work:~0,-1%"
 for /f "skip=2 tokens=2*" %%a in ('reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" /v Desktop') do call set "_dsk=%%b"
-if exist "%SystemDrive%\Users\Public\Desktop\desktop.ini" set "_dsk=%SystemDrive%\Users\Public\Desktop"
+if exist "%PUBLIC%\Desktop\desktop.ini" set "_dsk=%PUBLIC%\Desktop"
 setlocal EnableDelayedExpansion
 
 if %_Debug% EQU 0 (
@@ -106,8 +117,14 @@ set _Office16=0
 for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun /v InstallPath" %_Nul6%') do if exist "%%b\root\Licenses16\ProPlus*.xrm-ms" (
   set _Office16=1
 )
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\ClickToRun /v InstallPath" %_Nul6%') do if exist "%%b\root\Licenses16\ProPlus*.xrm-ms" (
+  set _Office16=1
+)
 set _Office15=0
 for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun /v InstallPath" %_Nul6%') do if exist "%%b\root\Licenses\ProPlus*.xrm-ms" (
+  set _Office15=1
+)
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\15.0\ClickToRun /v InstallPath" %_Nul6%') do if exist "%%b\root\Licenses\ProPlus*.xrm-ms" (
   set _Office15=1
 )
 if %_Office16% EQU 0 if %_Office15% EQU 0 (
@@ -119,12 +136,23 @@ goto :TheEnd
 if %_Office16% EQU 0 goto :Reg15istry
 set "_InstallRoot="
 set "_ProductIds="
-for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun /v InstallPath" %_Nul6%') do if not errorlevel 1 (set "_InstallRoot=%%b\root")
+set "_GUID="
+set "_Config="
+set "_PRIDs="
+set "_LicensesPath="
+set "_Integrator="
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun /v InstallPath" %_Nul6%') do (set "_InstallRoot=%%b\root")
 if not "%_InstallRoot%"=="" (
-  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun /v PackageGUID" %_Nul6%') do if not errorlevel 1 (set "_GUID=%%b")
-  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration /v ProductReleaseIds" %_Nul6%') do if not errorlevel 1 (set "_ProductIds=%%b")
+  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun /v PackageGUID" %_Nul6%') do (set "_GUID=%%b")
+  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration /v ProductReleaseIds" %_Nul6%') do (set "_ProductIds=%%b")
   set "_Config=HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration"
   set "_PRIDs=HKLM\SOFTWARE\Microsoft\Office\ClickToRun\ProductReleaseIDs"
+) else (
+  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\ClickToRun /v InstallPath" %_Nul6%') do (set "_InstallRoot=%%b\root")
+  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\ClickToRun /v PackageGUID" %_Nul6%') do (set "_GUID=%%b")
+  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\ClickToRun\Configuration /v ProductReleaseIds" %_Nul6%') do (set "_ProductIds=%%b")
+  set "_Config=HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\ClickToRun\Configuration"
+  set "_PRIDs=HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\ClickToRun\ProductReleaseIDs"
 )
 set "_LicensesPath=%_InstallRoot%\Licenses16"
 set "_Integrator=%_InstallRoot%\integration\integrator.exe"
@@ -148,23 +176,39 @@ if %_Office15% EQU 0 goto :CheckC2R
 :Reg15istry
 set "_Install15Root="
 set "_Product15Ids="
-for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun /v InstallPath" %_Nul6%') do if not errorlevel 1 (set "_Install15Root=%%b\root")
+set "_Con15fig="
+set "_PR15IDs="
+set "_OSPP15Ready="
+set "_Licenses15Path="
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun /v InstallPath" %_Nul6%') do (set "_Install15Root=%%b\root")
 if not "%_Install15Root%"=="" (
-  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun /v PackageGUID" %_Nul6%') do if not errorlevel 1 (set "_GU15ID=%%b")
-  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\Configuration /v ProductReleaseIds" %_Nul6%') do if not errorlevel 1 (set "_Product15Ids=%%b")
+  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\Configuration /v ProductReleaseIds" %_Nul6%') do (set "_Product15Ids=%%b")
   set "_Con15fig=HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\Configuration /v ProductReleaseIds"
   set "_PR15IDs=HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\ProductReleaseIDs"
   set "_OSPP15Ready=HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\Configuration"
+) else (
+  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\15.0\ClickToRun /v InstallPath" %_Nul6%') do (set "_Install15Root=%%b\root")
+  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\15.0\ClickToRun\Configuration /v ProductReleaseIds" %_Nul6%') do (set "_Product15Ids=%%b")
+  set "_Con15fig=HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\15.0\ClickToRun\Configuration /v ProductReleaseIds"
+  set "_PR15IDs=HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\15.0\ClickToRun\ProductReleaseIDs"
+  set "_OSPP15Ready=HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\15.0\ClickToRun\Configuration"
 )
 set "_OSPP15ReadT=REG_SZ"
 if "%_Product15Ids%"=="" (
-  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\propertyBag /v productreleaseid" %_Nul6%') do if not errorlevel 1 (set "_Product15Ids=%%b")
+reg query HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\propertyBag /v productreleaseid %_Nul3% && (
+  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\propertyBag /v productreleaseid" %_Nul6%') do (set "_Product15Ids=%%b")
   set "_Con15fig=HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\propertyBag /v productreleaseid"
   set "_OSPP15Ready=HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun"
   set "_OSPP15ReadT=REG_DWORD"
+  )
+reg query HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\15.0\ClickToRun\propertyBag /v productreleaseid %_Nul3% && (
+  for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\15.0\ClickToRun\propertyBag /v productreleaseid" %_Nul6%') do (set "_Product15Ids=%%b")
+  set "_Con15fig=HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\15.0\ClickToRun\propertyBag /v productreleaseid"
+  set "_OSPP15Ready=HKLM\SOFTWARE\WOW6432Node\Microsoft\Office\15.0\ClickToRun"
+  set "_OSPP15ReadT=REG_DWORD"
+  )
 )
 set "_Licenses15Path=%_Install15Root%\Licenses"
-set "_Integ15rator=%_Install15Root%\integration\integrator.exe"
 if exist "%ProgramFiles%\Microsoft Office\Office15\OSPP.VBS" (
   set "_OSPP15VBS=%ProgramFiles%\Microsoft Office\Office15\OSPP.VBS"
 ) else if exist "%ProgramW6432%\Microsoft Office\Office15\OSPP.VBS" (
@@ -205,8 +249,8 @@ set _sps=OfficeSoftwareProtectionService
 set _vbsi="!_OSPP15VBS!" /inslic:
 )
 set "_wmi="
-for /f "tokens=2 delims==" %%# in ('"wmic path %_sps% get version /value" %_Nul6%') do if not errorlevel 1 set "_wmi=%%#"
-if not defined _wmi (
+for /f "tokens=2 delims==" %%# in ('"wmic path %_sps% get version /value" %_Nul6%') do set "_wmi=%%#"
+if "%_wmi%"=="" (
 set "msg=Could not execute %_sps% WMI..."
 goto :TheEnd
 )
@@ -214,15 +258,15 @@ echo.
 echo %_ln%
 echo Checking Office Licenses...
 echo %_ln%
-wmic path %_spp% where "ApplicationID='%_oApp%' AND Description like '%%KMSCLIENT%%'" get LicenseFamily %_Nul2% | findstr /I /C:"Office" %_Nul1% && (set _KMS=1) || (set _KMS=0)
-wmic path %_spp% where "ApplicationID='%_oApp%' AND Description like '%%TIMEBASED%%'" get LicenseFamily %_Nul2% | findstr /I /C:"Office" %_Nul1% && (set _Time=1) || (set _Time=0)
-wmic path %_spp% where "ApplicationID='%_oApp%' AND Description like '%%Trial%%'" get LicenseFamily %_Nul2% | findstr /I /C:"Office" %_Nul1% && (set _Time=1)
-wmic path %_spp% where "ApplicationID='%_oApp%' AND Description like '%%Grace%%'" get LicenseFamily %_Nul2% | findstr /I /C:"Office" %_Nul1% && (set _Grace=1) || (set _Grace=0)
-if %_Office16% EQU 1 wmic path %_spp% where "ApplicationID='%_oApp%'" get LicenseFamily %_Nul2% | find /i "Office16MondoVL_KMS_Client" %_Nul1% && (
-wmic path %_spp% where "ApplicationID='%_oApp%' AND LicenseFamily like 'Office16O365%%'" get LicenseFamily %_Nul2% | find /i "O365" %_Nul1% || (set _Grace=1)
+wmic path %_spp% where "ApplicationID='%_oApp%' AND Description like '%%KMSCLIENT%%'" get LicenseFamily /value %_Nul2% | findstr /I /C:"Office" %_Nul1% && (set _KMS=1) || (set _KMS=0)
+wmic path %_spp% where "ApplicationID='%_oApp%' AND Description like '%%TIMEBASED%%'" get LicenseFamily /value %_Nul2% | findstr /I /C:"Office" %_Nul1% && (set _Time=1) || (set _Time=0)
+wmic path %_spp% where "ApplicationID='%_oApp%' AND Description like '%%Trial%%'" get LicenseFamily /value %_Nul2% | findstr /I /C:"Office" %_Nul1% && (set _Time=1)
+wmic path %_spp% where "ApplicationID='%_oApp%' AND Description like '%%Grace%%'" get LicenseFamily /value %_Nul2% | findstr /I /C:"Office" %_Nul1% && (set _Grace=1) || (set _Grace=0)
+if %_Office16% EQU 1 wmic path %_spp% where "ApplicationID='%_oApp%'" get LicenseFamily /value %_Nul2% | find /i "Office16MondoVL_KMS_Client" %_Nul1% && (
+wmic path %_spp% where "ApplicationID='%_oApp%' AND LicenseFamily like 'Office16O365%%'" get LicenseFamily /value %_Nul2% | find /i "O365" %_Nul1% || (set _Grace=1)
 )
-if %_Office15% EQU 1 wmic path %_spp% where "ApplicationID='%_oApp%'" get LicenseFamily %_Nul2% | find /i "OfficeMondoVL_KMS_Client" %_Nul1% && (
-wmic path %_spp% where "ApplicationID='%_oApp%' AND LicenseFamily like 'OfficeO365%%'" get LicenseFamily %_Nul2% | find /i "O365" %_Nul1% || (set _Grace=1)
+if %_Office15% EQU 1 wmic path %_spp% where "ApplicationID='%_oApp%'" get LicenseFamily /value %_Nul2% | find /i "OfficeMondoVL_KMS_Client" %_Nul1% && (
+wmic path %_spp% where "ApplicationID='%_oApp%' AND LicenseFamily like 'OfficeO365%%'" get LicenseFamily /value %_Nul2% | find /i "O365" %_Nul1% || (set _Grace=1)
 )
 if %_Time% EQU 0 if %_Grace% EQU 0 if %_KMS% EQU 1 (
 set "msg=No Conversion or Cleanup Required..."
@@ -251,13 +295,15 @@ set xBit=x86
 set _copp="!_Install15Root!\vfs\SystemX86"
 set xBit=x86
 )
+set _exeNum=1
+if %xBit%==x64 set _exeNum=2
 if %_Cnvrt% EQU 1 if %_Retail% EQU 0 if %_OMSI% EQU 0 if defined _copp (
 echo.
 echo %_ln%
 echo Cleaning Current Office Licenses...
 echo %_ln%
 pushd %_copp%
-%_Nul3% %_psc% "$d='!cd!';$f=[io.file]::ReadAllText('!_batp!') -split ':%xBit%exe\:.*';iex ($f[1]);X 1;"
+%_Nul3% %_psc% "$d='!cd!';$f=[IO.File]::ReadAllText('!_batp!') -split ':embdbin\:.*';iex ($f[1]);Y %_exeNum%"
 if exist cleanospp.exe (
 %_Nul3% cleanospp.exe -Licenses
 %_Nul3% del /f /q cleanospp.exe
@@ -334,6 +380,11 @@ if %_Retail% EQU 1 reg query %_PRIDs%\ProPlusRetail.16 %_Nul3% && (
   find /i "Office16ProPlusR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
   find /i "Office16ProPlusMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
   find /i "Office16ProPlusVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
+)
+find /i "Office16MondoVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (
+wmic path %spp% where 'ApplicationID="%_oApp%" AND LicenseFamily like "Office16O365%%"' get LicenseFamily /value %_Nul2% | find /i "O365" %_Nul1% && (
+  for %%a in (O365ProPlus,O365Business,O365SmallBusPrem,O365HomePrem,O365EduCloud) do set _%%a=0
+  )
 )
 
 if %_Cnvrt% NEQ 1 (if %_Office15% EQU 1 (goto :R15V) else (set "msg=Finished"&goto :TheEnd))
@@ -547,6 +598,11 @@ if %_Retail% EQU 1 reg query %_PR15IDs%\Active\ProPlusRetail\x-none %_Nul3% && (
   find /i "OfficeProPlusMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
   find /i "OfficeProPlusVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
 )
+find /i "OfficeMondoVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (
+wmic path %spp% where 'ApplicationID="%_oApp%" AND LicenseFamily like "OfficeO365%%"' get LicenseFamily /value %_Nul2% | find /i "O365" %_Nul1% && (
+  for %%a in (O365ProPlus,O365Business,O365SmallBusPrem,O365HomePrem) do set _%%a=0
+  )
+)
 
 if %_Cnvrt% NEQ 1 (set "msg=Finished"&goto :TheEnd)
 
@@ -680,9 +736,9 @@ for %%# in ("!_Licenses15Path!\%_patt%*.xrm-ms") do (
 )
 if defined _pkey wmic path %_sps% where version='%_wmi%' call InstallProductKey ProductKey="%_pkey%" %_Nul3%
 reg add %_OSPP15Ready% /f /v %_ID%.OSPPReady /t %_OSPP15ReadT% /d 1 %_Nul1%
-reg query %_Con15fig% | findstr /I "%_ID%" %_Nul1%
+reg query %_Con15fig% %_Nul2% | findstr /I "%_ID%" %_Nul1%
 if %errorlevel% NEQ 0 (
-for /f "skip=2 tokens=2*" %%a in ('reg query %_Con15fig%') do reg add %_Con15fig% /t REG_SZ /d "%%b,%_ID%" /f %_Nul1%
+for /f "skip=2 tokens=2*" %%a in ('reg query %_Con15fig% %_Nul6%') do reg add %_Con15fig% /t REG_SZ /d "%%b,%_ID%" /f %_Nul1%
 )
 exit /b
 
@@ -978,7 +1034,7 @@ exit /b
 set "_key=6Q7VD-NX8JD-WJ2VH-88V73-4GBJ7" &:: Word
 exit /b
 
-:x86exe:
+:embdbin:
 Add-Type -Language CSharp -TypeDefinition @"
  using System.IO; public class BAT85{ public static void Decode(string tmp, string s) { MemoryStream ms=new MemoryStream(); n=0;
  byte[] b85=new byte[255]; string a85="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$&()+,-./;=?@[]^_{|}~";
@@ -987,9 +1043,9 @@ Add-Type -Language CSharp -TypeDefinition @"
  if(k){ n+= b85[(byte)c] * p85[p++]; if(p == 5){ ms.Write(n4b(), 0, 4); n=0; p=0; } } }         if(p>0){ for(int i=0;i<5-p;i++){
  n += 84 * p85[p+i]; } ms.Write(n4b(), 0, p-1); } File.WriteAllBytes(tmp, ms.ToArray()); ms.SetLength(0); }
  private static byte[] n4b(){ return new byte[4]{(byte)(n>>24),(byte)(n>>16),(byte)(n>>8),(byte)n}; } private static long n=0; }
-"@; function X([int]$r=1){ $tmp="$r._"; [BAT85]::Decode($tmp, $f[$r+1]); expand $d\$tmp -F:* -R; del $tmp -force }
+"@; function Y([int]$r=1){ $tmp="$r._"; [BAT85]::Decode($tmp, $f[$r+1]); expand $d\$tmp -F:* -R; del $tmp -force }
 
-:x86exe:
+:embdbin:
 ::O/bZg00000vK{~c00000EC2ui000000|5a50RR9100000N(o.=0RRIP07L++00000005js0BQgLV{Bz&Zf|pNa4uzdWdQc^MT=k^07P4WfQ;wY20#S?GDBb]000jF
 ::;nm&MErwD{qEHrEKpp=lE4!StIjVhYGEh-9LZjuPWy,GR62Jlhej|n&_uKW6JX@WuJ4[Z_kYt3O-3H&yT7Xj+o4fURrH}b!/-?A$DH+m5C2L4!4FJpx9Mk~.J=kXZ
 ::U/CFjr&Rgvoq-h4u$rt9afgky.V1ZJS$m#hvh~{a73J9WY_2l~Yx~|L&G$l}k92Hp8jj}bq(3!5(?aM,uZbN;6eM6P0+iY8xIn]P|NHNMK?Pqe00319Kovt3[14wf
@@ -1069,20 +1125,7 @@ Add-Type -Language CSharp -TypeDefinition @"
 ::KZeJAjQS3LQlUY_F3Yv#pZF+VCy2[JYUDx&h!YYg|4+^tm_Y;;C?0tSYuMR=ER^ef4s0LX9[qsLnM]2ySQ~-D4wW71H{AIU.C!]Sl]G6DfCmH,6dpJ{fOsMCgW_w9
 ::hs-O,9~vJxA36_f9w0bG[){s6mIp8oWF9a$LGuT~913|bShd5U2hSW3aY&$gu];QrAhH)GT,S/0=pqD!Rb!y|VvPtkOH[Fu5l3M/1RWtT4UupN08A?Fn1V5JVgkiP
 ::iwT)&7!x!ma87hifKNash+g1ogk&$fCM..~kjQ3YgoG3lVMt/#5-6)+k@=$UNYq6O@3jMX0Du
-:x86exe:
-
-:amd64exe:
-Add-Type -Language CSharp -TypeDefinition @"
- using System.IO; public class BAT85{ public static void Decode(string tmp, string s) { MemoryStream ms=new MemoryStream(); n=0;
- byte[] b85=new byte[255]; string a85="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$&()+,-./;=?@[]^_{|}~";
- int[] p85={52200625,614125,7225,85,1}; for(byte i=0;i<85;i++){b85[(byte)a85[i]]=i;} bool k=false;int p=0; foreach(char c in s){
- switch(c){ case'\0':case'\n':case'\r':case'\b':case'\t':case'\xA0':case' ':case':': k=false;break; default: k=true;break; }
- if(k){ n+= b85[(byte)c] * p85[p++]; if(p == 5){ ms.Write(n4b(), 0, 4); n=0; p=0; } } }         if(p>0){ for(int i=0;i<5-p;i++){
- n += 84 * p85[p+i]; } ms.Write(n4b(), 0, p-1); } File.WriteAllBytes(tmp, ms.ToArray()); ms.SetLength(0); }
- private static byte[] n4b(){ return new byte[4]{(byte)(n>>24),(byte)(n>>16),(byte)(n>>8),(byte)n}; } private static long n=0; }
-"@; function X([int]$r=1){ $tmp="$r._"; [BAT85]::Decode($tmp, $f[$r+1]); expand $d\$tmp -F:* -R; del $tmp -force }
-
-:amd64exe:
+:embdbin:
 ::O/bZg00000!XN-u00000EC2ui000000|5a50RR9100000N(o.=0RRIP08Rh]00000005js0BQgLV{Bz&Zf|pNa4uzdWdJ2ilOu2.08U$gfQ;wo2jFoN0Jl?HBq9KS
 ::008cfr?;tDkd,4b?GCKCnmgo^dROl1myYJ8Y[swTP1jY!@&qo78NeWY-&N09^};1hHr_Y9(.i&X?+U{D4J1V3T.t~y[NrC7gAuv$x6wA}pz^=v0APe[s&8KHtqj}V
 ::TY5IvrZCKGsl^3=tMEw[L91Gg)i,enb^]KESYEUQ6PnPL[Rm1^]OpKairi,f_k7_#d8/Zycui;2LNP+/?8^.jVvHV/3ZIgA/&Vni[4x?0ATj]|0surq15oWyy7zi^
@@ -1167,7 +1210,7 @@ Add-Type -Language CSharp -TypeDefinition @"
 ::bGRRDAA5b7t^#hC4,OSzaS4])o!!yhkKc87#dpU$KspGOml#N^/0&QOV|c5oyQ;fyQ)Nb#@op1b.K4roy0W]nI;|F~I?BAx9bNZ$;zG6,y1Y8Qy1kv^U0;DF.Cqk(
 ::JG$&u,+iEw,j=[2,r~8{W&pvo#cr8hnO(RRj2$?TV7suL(aT{!vwOCy,)urO-3DNu??TX-@ELKh-Iiarh&Ck)synN[jk~pXjyoQAlkVLFyUKT&cX2zxXW[@;@=J67
 ::^.=RSch_64c=vo4?9hln6([8{2Hsk{2c8c-TzDpURq(PJo#Dgai]B=V3ghVT$MHJ6V!R&n9$p[vG2Rc+53di/2k#+BGF|}BRbo1Ey3T,I0AK
-:amd64exe:
+:embdbin:
 
 :E_PS
 echo %_err%
