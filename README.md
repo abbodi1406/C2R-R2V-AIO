@@ -47,7 +47,13 @@ Standard: all apps except Access, SkypeForBusiness
 HomeBusiness: Excel, OneNote, PowerPoint, Word, Outlook  
 HomeStudent: Excel, OneNote, PowerPoint, Word
 
-## Notice
+## Remarks
+
+- wmic.exe tool is removed from Windows 11 build 22483 and later
+
+In order to overcome this, the converter incorporate simple VBScripts to query and execute WMI functions
+
+This require Windows Script Host to be working and not disabled
 
 - On Windows 7, Office C2R 16.0 licensing service require Universal C Runtime to work correctly
 
