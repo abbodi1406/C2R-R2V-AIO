@@ -8,7 +8,7 @@ which makes it easier to move and distribute the script alone
 
 - This is not an activator, just a licensing converter
 
-- Supports: Office 365, Office 2021, Office 2019, Office 2016, Office 2013
+- Supports: Microsoft 365, Office 2024, Office 2021, Office 2019, Office 2016, Office 2013
 
 - Activated Retail products will be skipped from conversion  
 this include valid Office 365 subscriptions, or perpetual Office (MAK, OEM, MSDN, Retail..)
@@ -40,20 +40,14 @@ ProPlus, Professional, Standard, HomeBusiness, HomeStudent, Visio, Project
 - Apps:  
 Access, Excel, InfoPath, Onenote, Outlook, PowerPoint, Publisher, SkypeForBusiness, Word, Groove (OneDrive for Business)
 
-- Suites <> Apps relation:  
+- Suites <> Apps inclusion:  
 O365ProPlus, O365Business, O365SmallBusPrem, ProPlus: all apps  
 O365HomePrem, Professional: all apps except SkypeForBusiness  
 Standard: all apps except Access, SkypeForBusiness  
 HomeBusiness: Excel, OneNote, PowerPoint, Word, Outlook  
-HomeStudent: Excel, OneNote, PowerPoint, Word
+HomeStudent, O365EduCloud: Excel, OneNote, PowerPoint, Word
 
 ## Remarks
-
-- wmic.exe tool is removed from Windows 11 build 22483 and later
-
-In order to overcome this, the converter incorporate simple VBScripts to query and execute WMI functions
-
-This require Windows Script Host to be working and not disabled
 
 - On Windows 7, Office C2R 16.0 licensing service require Universal C Runtime to work correctly
 
@@ -61,7 +55,7 @@ This require Windows Script Host to be working and not disabled
 
 - Additionally, Office programs themselves require recent Windows 7 updates to start properly
 
-- While Office 2021 can be installed on Windows 7, it will not function or work properly
+- While Office 2019/2021 can be installed on Windows 7/8.1, it will not function or work properly
 
 ## Office 2019/2021
 
@@ -70,19 +64,19 @@ to workaround that, use the following steps
 
 - If you want Office Professional Plus:  
 1) install Office 2016 SKU ProPlusRetail  
-2) run C2R-R2V.cmd
+2) run C2R-R2V-AIO.cmd
 
 - Additionally, if you want Project and/or Visio:  
 1) install desired Office 2016 SKU: ProjectProRetail, ProjectStdRetail, VisioProRetail, VisioStdRetail  
-2) run C2R-R2V.cmd
+2) run C2R-R2V-AIO.cmd
 
 ## Manual advanced options:
 
 - To run the process in debug mode "with" conversion  
-edit C2R-R2V.cmd and set _Debug=1
+edit C2R-R2V-AIO.cmd and set _Debug=1
 
 - To run the process in debug mode "without" conversion  
-edit C2R-R2V.cmd and set _Cnvrt=0
+edit C2R-R2V-AIO.cmd and set _Cnvrt=0
 
 ## Credits
 

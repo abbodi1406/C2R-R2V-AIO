@@ -1,6 +1,6 @@
 <!-- : Begin batch script
 @setlocal DisableDelayedExpansion
-@set uivr=v19
+@set uivr=v20
 @echo off
 
 :: change to 0 to keep Office C2R vNext license (subscription or lifetime)
@@ -25,7 +25,7 @@ set WMI_PS=0
 set _args=
 set _args=%*
 if not defined _args goto :NoProgArgs
-for %%A in (%_args%) do (
+for %%A in (%*) do (
 if /i "%%A"=="-wow" set _rel1=1
 if /i "%%A"=="-arm" set _rel2=1
 )
@@ -42,20 +42,21 @@ start %SystemRoot%\SysArm32\cmd.exe /c ""!_cmdf!" -arm "
 exit /b
 )
 set "SysPath=%SystemRoot%\System32"
-set "Path=%SystemRoot%\System32;%SystemRoot%\System32\Wbem;%SystemRoot%\System32\WindowsPowerShell\v1.0\"
+set "Path=%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\Wbem;%SystemRoot%\System32\WindowsPowerShell\v1.0\"
 if exist "%SystemRoot%\Sysnative\reg.exe" (
 set "SysPath=%SystemRoot%\Sysnative"
-set "Path=%SystemRoot%\Sysnative;%SystemRoot%\Sysnative\Wbem;%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\;%Path%"
+set "Path=%SystemRoot%\Sysnative;%SystemRoot%;%SystemRoot%\Sysnative\Wbem;%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\;%Path%"
 )
-set "_psc=powershell -nop -c"
-set "_err===== ERROR ===="
 set "_ln============================================================="
+set "_err===== ERROR ===="
+set "_psc=powershell -nop -c"
 if /i "%PROCESSOR_ARCHITECTURE%"=="amd64" set "xBit=x64"&set "xOS=x64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="arm64" set "xBit=x86"&set "xOS=A64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="x86" if "%PROCESSOR_ARCHITEW6432%"=="" set "xBit=x86"&set "xOS=x86"
 if /i "%PROCESSOR_ARCHITEW6432%"=="amd64" set "xBit=x64"&set "xOS=x64"
 if /i "%PROCESSOR_ARCHITEW6432%"=="arm64" set "xBit=x86"&set "xOS=A64"
-
+set winbuild=1
+for /f "tokens=6 delims=[]. " %%# in ('ver') do set winbuild=%%#
 set _cwmi=0
 for %%# in (wmic.exe) do @if not "%%~$PATH:#"=="" (
 wmic path Win32_ComputerSystem get CreationClassName /value 2>nul | find /i "ComputerSystem" 1>nul && set _cwmi=1
@@ -67,11 +68,13 @@ if not exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" set _
 
 if %_Cnvrt% NEQ 1 set _Debug=1
 
+set _fC2R=TheEnd
+set "_Null=1>nul 2>nul"
 set "_temp=%SystemRoot%\Temp"
-reg query HKU\S-1-5-19 1>nul 2>nul || goto :E_Admin
+reg.exe query HKU\S-1-5-19 %_Null% || goto :E_Admin
 
 :Passed
-if not exist "%SystemRoot%\Temp\" mkdir "%SystemRoot%\Temp" 1>nul 2>nul
+if not exist "%_temp%\" mkdir "%_temp%" %_Null%
 set "_onat=HKLM\SOFTWARE\Microsoft\Office"
 set "_owow=HKLM\SOFTWARE\WOW6432Node\Microsoft\Office"
 set "_batf=%~f0"
@@ -82,7 +85,6 @@ set "_work=%~dp0"
 if "%_work:~-1%"=="\" set "_work=%_work:~0,-1%"
 for /f "skip=2 tokens=2*" %%a in ('reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" /v Desktop') do call set "_dsk=%%b"
 if exist "%PUBLIC%\Desktop\desktop.ini" set "_dsk=%PUBLIC%\Desktop"
-for /f "tokens=6 delims=[]. " %%G in ('ver') do set winbuild=%%G
 set _WSH=1
 reg query "HKCU\SOFTWARE\Microsoft\Windows Script Host\Settings" /v Enabled 2>nul | find /i "0x0" 1>nul && (set _WSH=0)
 reg query "HKLM\SOFTWARE\Microsoft\Windows Script Host\Settings" /v Enabled 2>nul | find /i "0x0" 1>nul && (set _WSH=0)
@@ -105,7 +107,7 @@ set "_csm=cscript.exe //NoLogo //Job:WmiMethod "%~nx0?.wsf""
 set "_csp=cscript.exe //NoLogo //Job:WmiPKey "%~nx0?.wsf""
 
 setlocal EnableDelayedExpansion
-copy /y nul "!_work!\#.rw" 1>nul 2>nul && (
+copy /y nul "!_work!\#.rw" %_Null% && (
 if exist "!_work!\#.rw" del /f /q "!_work!\#.rw"
 ) || (
 set "_log=!_dsk!\%~n0"
@@ -139,8 +141,9 @@ if %_Debug% EQU 0 (
 @exit /b
 
 :Begin
-color 1F
-title Office Click-to-Run Retail-to-Volume %uivr%
+@color 1F
+set "_title=Office Click-to-Run Retail-to-Volume %uivr%"
+title %_title%
 set "_SLMGR=%SysPath%\slmgr.vbs"
 set "_oApp=0ff1ce15-a989-479d-af46-f275c6370663"
 if %_Debug% EQU 0 (
@@ -148,7 +151,9 @@ set "_cscript=cscript.exe //NoLogo //B"
 ) else (
 set "_cscript=cscript.exe //NoLogo"
 )
-set _LTSC=0
+set _LTS19=0
+set _LTS21=0
+set _LTS24=0
 set "_tag="&set "_ons= 2016"
 
 echo %_ln%
@@ -156,16 +161,16 @@ echo Running C2R-R2V %uivr%
 echo %_ln%
 
 if %winbuild% LSS 7601 (
-set "msg=Windows 7 SP1 is the minimum supported OS..."
-goto :TheEnd
+set "msg=Windows 7 SP1 is the minimum supported OS"
+goto :%_fC2R%
 )
 sc query ClickToRunSvc %_Nul3%
 set error1=%errorlevel%
 sc query OfficeSvc %_Nul3%
 set error2=%errorlevel%
 if %error1% EQU 1060 if %error2% EQU 1060 (
-set "msg=Could not detect Office ClickToRun service..."
-goto :TheEnd
+set "msg=Office C2R service is not detected"
+goto :%_fC2R%
 )
 
 set _Office16=0
@@ -183,8 +188,8 @@ for /f "skip=2 tokens=2*" %%a in ('"reg query %_owow%\15.0\ClickToRun /v Install
   set _Office15=1
 )
 if %_Office16% EQU 0 if %_Office15% EQU 0 (
-set "msg=No installed Office 2013-2021 product detected..."
-goto :TheEnd
+set "msg=Office C2R InstallPath is not detected"
+goto :%_fC2R%
 )
 
 :Reg16istry
@@ -215,20 +220,18 @@ set "_LicensesPath=%_InstallRoot%\Licenses16"
 set "_Integrator=%_InstallRoot%\integration\integrator.exe"
 for /f "skip=2 tokens=2*" %%a in ('"reg query %_PRIDs% /v ActiveConfiguration" %_Nul6%') do set "_PRIDs=%_PRIDs%\%%b"
 if "%_ProductIds%"=="" (
-set "msg=Could not detect Office 2016-2021 ProductIDs..."
-if %_Office15% EQU 0 (goto :TheEnd) else (goto :Reg15istry)
+if %_Office15% EQU 0 (set "msg=Office C2R ProductIDs are not detected"&goto :%_fC2R%) else (goto :Reg15istry)
 )
 if not exist "%_LicensesPath%\ProPlus*.xrm-ms" (
-set "msg=Could not detect Office 2016-2021 Licenses files..."
-if %_Office15% EQU 0 (goto :TheEnd) else (goto :Reg15istry)
+if %_Office15% EQU 0 (set "msg=Office C2R Licenses files are not detected"&goto :%_fC2R%) else (goto :Reg15istry)
 )
 if not exist "%_Integrator%" (
-set "msg=Could not detect Office 2016-2021 Licenses Integrator..."
-if %_Office15% EQU 0 (goto :TheEnd) else (goto :Reg15istry)
+if %_Office15% EQU 0 (set "msg=Office C2R Licenses Integrator is not detected"&goto :%_fC2R%) else (goto :Reg15istry)
 )
-if exist "%_LicensesPath%\Word2019VL_KMS_Client_AE*.xrm-ms" (set "_tag=2019"&set "_ons= 2019")
-if exist "%_LicensesPath%\Word2021VL_KMS_Client_AE*.xrm-ms" (set _LTSC=1)
-if %winbuild% LSS 10240 if !_LTSC! EQU 1 (set "_tag=2021"&set "_ons= 2021")
+if exist "%_LicensesPath%\Word2019VL_KMS_Client_AE*.xrm-ms" (set _LTS19=1&set "_tag=2019"&set "_ons= 2019")
+if exist "%_LicensesPath%\Word2021VL_KMS_Client_AE*.xrm-ms" (set _LTS21=1)
+if exist "%_LicensesPath%\Word2024VL_KMS_Client_AE*.xrm-ms" (set _LTS24=1)
+if %winbuild% LSS 10240 if !_LTS21! EQU 1 (set "_tag=2021"&set "_ons= 2021")
 if %_Office15% EQU 0 goto :CheckC2R
 
 :Reg15istry
@@ -276,16 +279,13 @@ for %%G in (
 if not defined _OSPP15VBS set "_OSPP15VBS=%%~G\Microsoft Office\Office15\OSPP.VBS"
 )
 if "%_Product15Ids%"=="" (
-set "msg=Could not detect Office 2013 ProductIDs..."
-if %_Office16% EQU 0 (goto :TheEnd) else (goto :CheckC2R)
+if %_Office16% EQU 0 (set "msg=Office 2013 C2R ProductIDs are not detected"&goto :%_fC2R%) else (goto :CheckC2R)
 )
 if not exist "%_Licenses15Path%\ProPlus*.xrm-ms" (
-set "msg=Could not detect Office 2013 Licenses files..."
-if %_Office16% EQU 0 (goto :TheEnd) else (goto :CheckC2R)
+if %_Office16% EQU 0 (set "msg=Office 2013 C2R Licenses files are not detected"&goto :%_fC2R%) else (goto :CheckC2R)
 )
 if %winbuild% LSS 9200 if "%_OSPP15VBS%"=="" (
-set "msg=Could not detect Office 2013 Licensing tool {OSPP.vbs}..."
-if %_Office16% EQU 0 (goto :TheEnd) else (goto :CheckC2R)
+if %_Office16% EQU 0 (set "msg=Office 2013 C2R Licensing tool OSPP.vbs is not detected"&goto :%_fC2R%) else (goto :CheckC2R)
 )
 
 :CheckC2R
@@ -313,8 +313,8 @@ set "_wmi="
 call :qrSingle %_sps% Version
 for /f "tokens=2 delims==" %%# in ('%_qr%') do set _wmi=%%#
 if "%_wmi%"=="" (
-set "msg=Could not execute %_sps% WMI..."
-goto :TheEnd
+set "msg=%_sps% WMI version is not detected"
+goto :%_fC2R%
 )
 echo.
 echo %_ln%
@@ -339,8 +339,8 @@ if %_Office15% EQU 1 find /i "OfficeMondoVL_KMS_Client" "!_temp!\crvchk.txt" %_N
 %_qr% %_Nul2% | find /i "O365" %_Nul1% || (set _Grace=1)
 )
 if %_Time% EQU 0 if %_Grace% EQU 0 if %_KMS% EQU 1 (
-set "msg=No Conversion or Cleanup Required..."
-goto :TheEnd
+set "msg=No Conversion or Cleanup required"
+goto :%_fC2R%
 )
 
 call :subOffice
@@ -364,29 +364,27 @@ call :qrQuery %_spp% "%_ocq%" Description fix
 find /i "RETAIL channel" "!_temp!\crvRetail.txt" %_Nul1% && set _Retail=1
 find /i "RETAIL(MAK) channel" "!_temp!\crvRetail.txt" %_Nul1% && set _Retail=1
 find /i "TIMEBASED_SUB channel" "!_temp!\crvRetail.txt" %_Nul1% && set _Retail=1
-if %_Cnvrt% EQU 1 if %sub_next% EQU 0 if %_Retail% EQU 0 if %_OMSI% EQU 0 if %_pwsh% equ 1 call :oppcln
-goto :oppchk
-
-:oppcln
+set rancopp=0
+if %_Cnvrt% EQU 1 if %sub_next% EQU 0 if %_Retail% EQU 0 if %_OMSI% EQU 0 if %_pwsh% equ 1 (
 echo.
 echo %_ln%
 echo Cleaning Current Office Licenses...
 echo %_ln%
+set rancopp=1
 %_Nul3% %_psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':embdbin\:.*';iex ($f[1])"
-title Office Click-to-Run Retail-to-Volume %uivr%
-exit /b
+title %_title%
+)
 
-:oppchk
+:R16V
 echo.
 echo %_ln%
 echo Checking installed Office Products...
 echo %_ln%
 echo.
+set _SubID=O365ProPlus,O365Business,O365SmallBusPrem,O365HomePrem,O365EduCloud
 set _O16O365=0
-set _C16Msg=0
-set _C15Msg=0
-set _C16Vol=0
-set _C15Vol=0
+set _C16Msg=0&set _C16Vol=0
+set _C15Msg=0&set _C15Vol=0
 call :qrQuery %_spp% "%_ocq%" LicenseFamily fix
 if %_Retail% EQU 1 %_qr% %_Nul2% |findstr /V /R "^$" >"!_temp!\crvRetail.txt"
 call :qrQuery %_spp% "ApplicationID='%_oApp%'" LicenseFamily fix
@@ -394,42 +392,71 @@ call :qrQuery %_spp% "ApplicationID='%_oApp%'" LicenseFamily fix
 
 if %_Office16% EQU 0 goto :R15V
 
-set _O21Ids=ProPlus2021,ProjectPro2021,VisioPro2021,Standard2021,ProjectStd2021,VisioStd2021,Access2021,SkypeforBusiness2021
-set _O19Ids=ProPlus2019,ProjectPro2019,VisioPro2019,Standard2019,ProjectStd2019,VisioStd2019,Access2019,SkypeforBusiness2019
-set _O16Ids=ProjectPro,VisioPro,Standard,ProjectStd,VisioStd,Access,SkypeforBusiness
-set _A21Ids=Excel2021,Outlook2021,PowerPoint2021,Publisher2021,Word2021
-set _A19Ids=Excel2019,Outlook2019,PowerPoint2019,Publisher2019,Word2019
-set _A16Ids=Excel,Outlook,PowerPoint,Publisher,Word
-set _V21Ids=%_O21Ids%,%_A21Ids%
-set _V19Ids=%_O19Ids%,%_A19Ids%
-set _V16Ids=Mondo,%_O16Ids%,%_A16Ids%,OneNote
-set _R16Ids=%_V16Ids%,Professional,HomeBusiness,HomeStudent,O365ProPlus,O365Business,O365SmallBusPrem,O365HomePrem,O365EduCloud
-set _RetIds=%_V21Ids%,Professional2021,HomeBusiness2021,HomeStudent2021,%_V19Ids%,Professional2019,HomeBusiness2019,HomeStudent2019,%_R16Ids%
-set _Suites=Mondo,O365ProPlus,O365Business,O365SmallBusPrem,O365HomePrem,O365EduCloud,ProPlus,Standard,Professional,HomeBusiness,HomeStudent,ProPlus2019,Standard2019,Professional2019,HomeBusiness2019,HomeStudent2019,ProPlus2021,Standard2021,Professional2021,HomeBusiness2021,HomeStudent2021
-set _PrjSKU=ProjectPro,ProjectStd,ProjectPro2019,ProjectStd2019,ProjectPro2021,ProjectStd2021
-set _VisSKU=VisioPro,VisioStd,VisioPro2019,VisioStd2019,VisioPro2021,VisioStd2021
+set _S24ID=ProPlus2024,Standard2024
+set _S21ID=ProPlus2021,Standard2021
+set _S19ID=ProPlus2019,Standard2019
+set _S16ID=Mondo,Standard
+set _P24ID=ProjectPro2024,ProjectStd2024
+set _P21ID=ProjectPro2021,ProjectStd2021
+set _P19ID=ProjectPro2019,ProjectStd2019
+set _P16ID=ProjectPro,ProjectStd
+set _I24ID=VisioPro2024,VisioStd2024
+set _I21ID=VisioPro2021,VisioStd2021
+set _I19ID=VisioPro2019,VisioStd2019
+set _I16ID=VisioPro,VisioStd
+set _A24ID=Excel2024,Outlook2024,PowerPoint2024,Word2024
+set _A21ID=Excel2021,Outlook2021,PowerPoint2021,Publisher2021,Word2021
+set _A19ID=Excel2019,Outlook2019,PowerPoint2019,Publisher2019,Word2019
+set _A16ID=Excel,Outlook,PowerPoint,Publisher,Word
+set _E24ID=Access2024,SkypeforBusiness2024
+set _E21ID=Access2021,SkypeforBusiness2021
+set _E19ID=Access2019,SkypeforBusiness2019
+set _E16ID=Access,SkypeforBusiness
+set _R24ID=Professional2024,HomeBusiness2024,HomeStudent2024,Home2024
+set _R21ID=Professional2021,HomeBusiness2021,HomeStudent2021
+set _R19ID=Professional2019,HomeBusiness2019,HomeStudent2019
+set _R16ID=Professional,HomeBusiness,HomeStudent,%_SubID%
+set _V24ID=%_S24ID%,%_A24ID%,%_E24ID%,%_P24ID%,%_I24ID%
+set _V21ID=%_S21ID%,%_A21ID%,%_E21ID%,%_P21ID%,%_I21ID%
+set _V19ID=%_S19ID%,%_A19ID%,%_E19ID%,%_P19ID%,%_I19ID%
+set _V16ID=%_S16ID%,%_A16ID%,%_E16ID%,%_P16ID%,%_I16ID%
+set _RetID=%_R24ID%,%_V24ID%,%_R21ID%,%_V21ID%,%_R19ID%,%_V19ID%,%_R16ID%,%_V16ID%
+set _Suites=ProPlus,%_S16ID%,%_R16ID%,%_S19ID%,%_R19ID%,%_S21ID%,%_R21ID%,%_S24ID%,%_R24ID%
+set _PrjSKU=%_P16ID%,%_P19ID%,%_P21ID%,%_P24ID%
+set _VisSKU=%_I16ID%,%_I19ID%,%_I21ID%,%_I24ID%
 
 echo %_ProductIds%>"!_temp!\crvProductIds.txt"
-for %%a in (%_RetIds%,ProPlus) do (
+for %%a in (%_RetID%,ProPlus,OneNote,Publisher2024,Home,Home2019,Home2021) do (
 set _%%a=0
 )
-for %%a in (%_RetIds%) do (
+for %%a in (%_RetID%,OneNote) do (
 findstr /I /C:"%%aRetail" "!_temp!\crvProductIds.txt" %_Nul1% && set _%%a=1
 )
-if !_LTSC! EQU 0 for %%a in (%_V21Ids%) do (
+if !_LTS24! EQU 0 for %%a in (%_V24ID%) do (
 set _%%a=0
 )
-if !_LTSC! EQU 1 for %%a in (%_V21Ids%) do (
+if !_LTS24! EQU 1 for %%a in (%_V24ID%) do (
+findstr /I /C:"%%aVolume" "!_temp!\crvProductIds.txt" %_Nul1% && (
+  find /i "Office24%%aVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (set _%%a=0&set _C16Vol=1) || (set _%%a=1)
+  )
+)
+if !_LTS21! EQU 0 for %%a in (%_V21ID%) do (
+set _%%a=0
+)
+if !_LTS21! EQU 1 for %%a in (%_V21ID%) do (
 findstr /I /C:"%%aVolume" "!_temp!\crvProductIds.txt" %_Nul1% && (
   find /i "Office21%%aVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (set _%%a=0&set _C16Vol=1) || (set _%%a=1)
   )
 )
-for %%a in (%_V19Ids%) do (
+if !_LTS19! EQU 0 for %%a in (%_V19ID%) do (
+set _%%a=0
+)
+if !_LTS19! EQU 1 for %%a in (%_V19ID%) do (
 findstr /I /C:"%%aVolume" "!_temp!\crvProductIds.txt" %_Nul1% && (
   find /i "Office19%%aVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (set _%%a=0&set _C16Vol=1) || (set _%%a=1)
   )
 )
-for %%a in (%_V16Ids%) do (
+for %%a in (%_V16ID%,OneNote) do (
 findstr /I /C:"%%aVolume" "!_temp!\crvProductIds.txt" %_Nul1% && (
   find /i "Office16%%aVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (set _%%a=0&set _C16Vol=1) || (set _%%a=1)
   )
@@ -440,62 +467,65 @@ reg query %_PRIDs%\ProPlusRetail.16 %_Nul3% && (
 reg query %_PRIDs%\ProPlusVolume.16 %_Nul3% && (
   find /i "Office16ProPlusVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (set _ProPlus=0&set _C16Vol=1) || (set _ProPlus=1)
 )
-if %_Retail% EQU 1 for %%a in (%_RetIds%) do (
+if %_Retail% EQU 1 for %%a in (%_RetID%,OneNote) do (
 findstr /I /C:"%%aRetail" "!_temp!\crvProductIds.txt" %_Nul1% && (
-  find /i "Office16%%aR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office16%%aR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office16%%aR_Sub" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office16%%aR_PIN" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office16%%aE5R_" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office16%%aEDUR_" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office16%%aMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office16%%aO365R_" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office16%%aCO365R_" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office16%%aVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office16%%aXC2RVL_MAKC2R" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office19%%aR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office19%%aR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office19%%aMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office19%%aVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office21%%aR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office21%%aR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office21%%aMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office21%%aVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
+  find /i "Office16%%aR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office16%%aR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office16%%aR_Sub" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office16%%aR_PIN" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office16%%aE5R_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office16%%aEDUR_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office16%%aMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office16%%aO365R_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office16%%aCO365R_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office16%%aVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office16%%aXC2RVL_MAKC2R" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office19%%aR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office19%%aR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office19%%aMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office19%%aVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office21%%aR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office21%%aR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office21%%aMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office21%%aVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office24%%aR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office24%%aR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office24%%aMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office24%%aVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
   )
 )
 if %_Retail% EQU 1 reg query %_PRIDs%\ProPlusRetail.16 %_Nul3% && (
-  find /i "Office16ProPlusR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
-  find /i "Office16ProPlusR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
-  find /i "Office16ProPlusMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
-  find /i "Office16ProPlusVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
+  find /i "Office16ProPlusR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && (set _ProPlus=0)
+  find /i "Office16ProPlusR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && (set _ProPlus=0)
+  find /i "Office16ProPlusMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && (set _ProPlus=0)
+  find /i "Office16ProPlusVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && (set _ProPlus=0)
 )
-call :qrQuery %_spp% "ApplicationID='%_oApp%' AND LicenseFamily LIKE 'Office16O365%%%%'" LicenseFamily
+call :qrQuery %_spp% "ApplicationID='%_oApp%' AND LicenseFamily like 'Office16O365%%%%'" LicenseFamily
 find /i "Office16MondoVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (
 %_qr% %_Nul2% | find /i "O365" %_Nul1% && (
-  for %%a in (O365ProPlus,O365Business,O365SmallBusPrem,O365HomePrem,O365EduCloud) do set _%%a=0
+  for %%a in (%_SubID%) do set _%%a=0
   )
 )
 if %sub_o365% EQU 1 (
-  for %%a in (%_Suites%) do set _%%a=0
+for %%a in (%_Suites%) do set _%%a=0
 echo Microsoft Office is activated with a vNext license.
 echo.
 )
 if %sub_proj% EQU 1 (
-  for %%a in (%_PrjSKU%) do set _%%a=0
+for %%a in (%_PrjSKU%) do set _%%a=0
 echo Microsoft Project is activated with a vNext license.
 echo.
 )
 if %sub_vsio% EQU 1 (
-  for %%a in (%_VisSKU%) do set _%%a=0
+for %%a in (%_VisSKU%) do set _%%a=0
 echo Microsoft Visio is activated with a vNext license.
 echo.
 )
 
-if %_Cnvrt% NEQ 1 (if %_Office15% EQU 1 (goto :R15V) else (set "msg=Finished"&goto :TheEnd))
+if %_Cnvrt% NEQ 1 (if %_Office15% EQU 1 (goto :R15V) else (set "msg=Finished"&goto :%_fC2R%))
 
-for %%a in (%_RetIds%,ProPlus) do if !_%%a! EQU 1 (
-set _C16Msg=1
-set _C16Vol=1
+for %%a in (%_RetID%,ProPlus,OneNote) do if !_%%a! EQU 1 (
+set _C16Msg=1&set _C16Vol=1
 )
 if %_C16Msg% EQU 1 (
 echo.
@@ -504,7 +534,7 @@ echo Installing Office Volume Licenses...
 echo %_ln%
 echo.
 )
-if %_C16Msg% EQU 0 (if %_Office15% EQU 1 (goto :R15V) else (goto :GVLKC2R))
+if %_C16Msg% EQU 0 goto :endRV16
 
 set "_arr="
 for %%# in ("!_LicensesPath!\client-issuance-*.xrm-ms") do (
@@ -515,222 +545,138 @@ if %WMI_PS% NEQ 0 (
   )
 )
 if %WMI_PS% NEQ 0 (
-  %_Nul3% %_psc% "$Sls='%_sps%'; $Ver='%_wmi%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); InstallLicenseArr '!_arr!'; InstallLicenseFile '"!_LicensesPath!\pkeyconfig-office.xrm-ms"'"
+  %_Nul3% %_psc% "$sls='%_sps%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); InstallLicenseArr '!_arr!'; InstallLicenseFile '"!_LicensesPath!\pkeyconfig-office.xrm-ms"'"
   ) else (
   %_cscript% %_vbsf%"!_LicensesPath!\pkeyconfig-office.xrm-ms"
   )
 
+set _jump=0
+set _DidO365=0
 if !_Mondo! EQU 1 (
 call :InsLic Mondo
 )
 if !_O365ProPlus! EQU 1 (
+set _DidO365=1
 echo O365ProPlus 2016 Suite ^<-^> Mondo 2016 Licenses
-echo.
 call :InsLic O365ProPlus DRNV7-VGMM2-B3G9T-4BF84-VMFTK
 if !_Mondo! EQU 0 call :InsLic Mondo
 )
-if !_O365Business! EQU 1 if !_O365ProPlus! EQU 0 (
-set _O365ProPlus=1
+if !_O365Business! EQU 1 if !_DidO365! EQU 0 (
+set _DidO365=1
 echo O365Business 2016 Suite ^<-^> Mondo 2016 Licenses
-echo.
 call :InsLic O365Business NCHRJ-3VPGW-X73DM-6B36K-3RQ6B
 if !_Mondo! EQU 0 call :InsLic Mondo
 )
-if !_O365SmallBusPrem! EQU 1 if !_O365Business! EQU 0 if !_O365ProPlus! EQU 0 (
-set _O365ProPlus=1
+if !_O365SmallBusPrem! EQU 1 if !_DidO365! EQU 0 (
+set _DidO365=1
 echo O365SmallBusPrem 2016 Suite ^<-^> Mondo 2016 Licenses
-echo.
 call :InsLic O365SmallBusPrem 3FBRX-NFP7C-6JWVK-F2YGK-H499R
 if !_Mondo! EQU 0 call :InsLic Mondo
 )
-if !_O365HomePrem! EQU 1 if !_O365SmallBusPrem! EQU 0 if !_O365Business! EQU 0 if !_O365ProPlus! EQU 0 (
-set _O365ProPlus=1
+if !_O365HomePrem! EQU 1 if !_DidO365! EQU 0 (
+set _DidO365=1
 echo O365HomePrem 2016 Suite ^<-^> Mondo 2016 Licenses
-echo.
 call :InsLic O365HomePrem 9FNY8-PWWTY-8RY4F-GJMTV-KHGM9
 if !_Mondo! EQU 0 call :InsLic Mondo
 )
-if !_O365EduCloud! EQU 1 if !_O365HomePrem! EQU 0 if !_O365SmallBusPrem! EQU 0 if !_O365Business! EQU 0 if !_O365ProPlus! EQU 0 (
-set _O365ProPlus=1
+if !_O365EduCloud! EQU 1 if !_DidO365! EQU 0 (
+set _DidO365=1
 echo O365EduCloud 2016 Suite ^<-^> Mondo 2016 Licenses
-echo.
 call :InsLic O365EduCloud 8843N-BCXXD-Q84H8-R4Q37-T3CPT
 if !_Mondo! EQU 0 call :InsLic Mondo
 )
-if !_O365ProPlus! EQU 1 set _O16O365=1
-if !_Mondo! EQU 1 if !_O365ProPlus! EQU 0 (
+if !_DidO365! EQU 1 set _jump=1&set _O16O365=1
+if !_Mondo! EQU 1 if !_DidO365! EQU 0 (
 echo Mondo 2016 Suite
-echo.
 call :InsLic O365ProPlus DRNV7-VGMM2-B3G9T-4BF84-VMFTK
-if %_Office15% EQU 1 (goto :R15V) else (goto :GVLKC2R)
+goto :endRV16
 )
-if !_ProPlus2021! EQU 1 if !_O365ProPlus! EQU 0 (
-echo ProPlus 2021 Suite
-echo.
-call :InsLic ProPlus2021
+
+for %%a in (%_P16ID%,%_I16ID%) do (
+  if !_%%a2024! EQU 1 (echo %%a 2024 SKU&call :InsLic %%a2024)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 1 (echo %%a 2021 SKU&call :InsLic %%a2021)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 1 (echo %%a 2019 SKU -^> %%a%_ons% Licenses&call :InsLic %%a%_tag%)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 if !_%%a! EQU 1 (echo %%a 2016 SKU -^> %%a%_ons% Licenses&call :InsLic %%a%_tag%)
 )
-if !_ProPlus2019! EQU 1 if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 (
-echo ProPlus 2019 Suite -^> ProPlus%_ons% Licenses
-echo.
-call :InsLic ProPlus%_tag%
+
+if !_jump! EQU 1 goto :endRV16
+
+for %%a in (ProPlus) do (
+  if !_%%a2024! EQU 1 (set _jump=1&echo %%a 2024 Suite&call :InsLic ProPlus2024)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 1 (set _jump=1&echo %%a 2021 Suite&call :InsLic ProPlus2021)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 1 (set _jump=1&echo %%a 2019 Suite -^> ProPlus%_ons% Licenses&call :InsLic ProPlus%_tag%)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 if !_%%a! EQU 1 (set _jump=1&echo %%a 2016 Suite -^> ProPlus%_ons% Licenses&call :InsLic ProPlus%_tag%)
 )
-if !_ProPlus! EQU 1 if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 (
-echo ProPlus 2016 Suite -^> ProPlus%_ons% Licenses
-echo.
-call :InsLic ProPlus%_tag%
+if !_jump! EQU 1 goto :endRV16
+
+for %%a in (Professional) do (
+  if !_%%a2024! EQU 1 (set _jump=1&echo %%a 2024 Suite -^> ProPlus 2024 Licenses&call :InsLic ProPlus2024)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 1 (set _jump=1&echo %%a 2021 Suite -^> ProPlus 2021 Licenses&call :InsLic ProPlus2021)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 1 (set _jump=1&echo %%a 2019 Suite -^> ProPlus%_ons% Licenses&call :InsLic ProPlus%_tag%)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 if !_%%a! EQU 1 (set _jump=1&echo %%a 2016 Suite -^> ProPlus%_ons% Licenses&call :InsLic ProPlus%_tag%)
 )
-if !_Professional2021! EQU 1 if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 (
-echo Professional 2021 Suite -^> ProPlus 2021 Licenses
-echo.
-call :InsLic ProPlus2021
+if !_jump! EQU 1 goto :endRV16
+
+for %%a in (SkypeforBusiness) do (
+  if !_%%a2024! EQU 1 (echo %%a 2024 App&call :InsLic %%a2024)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 1 (echo %%a 2021 App&call :InsLic %%a2021)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 1 (echo %%a 2019 App -^> %%a%_ons% Licenses&call :InsLic %%a%_tag%)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 if !_%%a! EQU 1 (echo %%a 2016 App -^> %%a%_ons% Licenses&call :InsLic %%a%_tag%)
 )
-if !_Professional2019! EQU 1 if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 (
-echo Professional 2019 Suite -^> ProPlus%_ons% Licenses
-echo.
-call :InsLic ProPlus%_tag%
+
+for %%a in (Access) do (
+  if !_%%a2024! EQU 1 (echo %%a 2024 App&call :InsLic %%a2024)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 1 (echo %%a 2021 App&call :InsLic %%a2021)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 1 (echo %%a 2019 App -^> %%a%_ons% Licenses&call :InsLic %%a%_tag%)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 if !_%%a! EQU 1 (echo %%a 2016 App -^> %%a%_ons% Licenses&call :InsLic %%a%_tag%)
 )
-if !_Professional! EQU 1 if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 (
-echo Professional 2016 Suite -^> ProPlus%_ons% Licenses
-echo.
-call :InsLic ProPlus%_tag%
+
+for %%a in (Standard) do (
+  if !_%%a2024! EQU 1 (set _jump=1&echo %%a 2024 Suite&call :InsLic Standard2024)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 1 (set _jump=1&echo %%a 2021 Suite&call :InsLic Standard2021)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 1 (set _jump=1&echo %%a 2019 Suite -^> Standard%_ons% Licenses&call :InsLic Standard%_tag%)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 if !_%%a! EQU 1 (set _jump=1&echo %%a 2016 Suite -^> Standard%_ons% Licenses&call :InsLic Standard%_tag%)
 )
-if !_Standard2021! EQU 1 if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 (
-echo Standard 2021 Suite
-echo.
-call :InsLic Standard2021
+if !_jump! EQU 1 goto :endRV16
+
+for %%a in (HomeBusiness,HomeStudent,Home) do (
+  if !_%%a2024! EQU 1 (set _jump=1&echo %%a 2024 Suite -^> Standard 2024 Licenses&call :InsLic Standard2024)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 1 (set _jump=1&echo %%a 2021 Suite -^> Standard 2021 Licenses&call :InsLic Standard2021)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 1 (set _jump=1&echo %%a 2019 Suite -^> Standard%_ons% Licenses&call :InsLic Standard%_tag%)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 if !_%%a! EQU 1 (set _jump=1&echo %%a 2016 Suite -^> Standard%_ons% Licenses&call :InsLic Standard%_tag%)
 )
-if !_Standard2019! EQU 1 if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 if !_Standard2021! EQU 0 (
-echo Standard 2019 Suite -^> Standard%_ons% Licenses
-echo.
-call :InsLic Standard%_tag%
+if !_jump! EQU 1 goto :endRV16
+
+for %%a in (%_A16ID%) do (
+  if !_%%a2024! EQU 1 (echo %%a 2024 App&call :InsLic %%a2024)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 1 (echo %%a 2021 App&call :InsLic %%a2021)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 1 (echo %%a 2019 App -^> %%a%_ons% Licenses&call :InsLic %%a%_tag%)
+  if !_%%a2024! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 if !_%%a! EQU 1 (echo %%a 2016 App -^> %%a%_ons% Licenses&call :InsLic %%a%_tag%)
 )
-if !_Standard! EQU 1 if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 if !_Standard2021! EQU 0 if !_Standard2019! EQU 0 (
-echo Standard 2016 Suite -^> Standard%_ons% Licenses
-echo.
-call :InsLic Standard%_tag%
+for %%a in (OneNote) do (
+  if !_%%a! EQU 1 (echo %%a 2016 App&call :InsLic %%a)
 )
-for %%a in (ProjectPro,VisioPro,ProjectStd,VisioStd) do if !_%%a2021! EQU 1 (
-  echo %%a 2021 SKU
-  echo.
-  call :InsLic %%a2021
-)
-for %%a in (ProjectPro,VisioPro,ProjectStd,VisioStd) do if !_%%a2019! EQU 1 (
-if !_%%a2021! EQU 0 (
-  echo %%a 2019 SKU -^> %%a%_ons% Licenses
-  echo.
-  call :InsLic %%a%_tag%
-  )
-)
-for %%a in (ProjectPro,VisioPro,ProjectStd,VisioStd) do if !_%%a! EQU 1 (
-if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 (
-  echo %%a 2016 SKU -^> %%a%_ons% Licenses
-  echo.
-  call :InsLic %%a%_tag%
-  )
-)
-for %%a in (HomeBusiness,HomeStudent) do if !_%%a2021! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 if !_Standard2021! EQU 0 if !_Standard2019! EQU 0 if !_Standard! EQU 0 (
-  set _Standard2021=1
-  echo %%a 2021 Suite -^> Standard 2021 Licenses
-  echo.
-  call :InsLic Standard2021
-  )
-)
-for %%a in (HomeBusiness,HomeStudent) do if !_%%a2019! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 if !_Standard2021! EQU 0 if !_Standard2019! EQU 0 if !_Standard! EQU 0 if !_%%a2021! EQU 0 (
-  set _Standard2019=1
-  echo %%a 2019 Suite -^> Standard%_ons% Licenses
-  echo.
-  call :InsLic Standard%_tag%
-  )
-)
-for %%a in (HomeBusiness,HomeStudent) do if !_%%a! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 if !_Standard2021! EQU 0 if !_Standard2019! EQU 0 if !_Standard! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 (
-  set _Standard=1
-  echo %%a 2016 Suite -^> Standard%_ons% Licenses
-  echo.
-  call :InsLic Standard%_tag%
-  )
-)
-for %%a in (%_A21Ids%,OneNote) do if !_%%a! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 if !_Standard2021! EQU 0 if !_Standard2019! EQU 0 if !_Standard! EQU 0 (
-  echo %%a App
-  echo.
-  call :InsLic %%a
-  )
-)
-for %%a in (%_A16Ids%) do if !_%%a2019! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 if !_Standard2021! EQU 0 if !_Standard2019! EQU 0 if !_Standard! EQU 0 if !_%%a2021! EQU 0 (
-  echo %%a 2019 App -^> %%a%_ons% Licenses
-  echo.
-  call :InsLic %%a%_tag%
-  )
-)
-for %%a in (%_A16Ids%) do if !_%%a! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 if !_Standard2021! EQU 0 if !_Standard2019! EQU 0 if !_Standard! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 (
-  echo %%a 2016 App -^> %%a%_ons% Licenses
-  echo.
-  call :InsLic %%a%_tag%
-  )
-)
-for %%a in (Access) do if !_%%a2021! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 (
-  echo %%a 2021 App
-  echo.
-  call :InsLic %%a2021
-  )
-)
-for %%a in (Access) do if !_%%a2019! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 if !_%%a2021! EQU 0 (
-  echo %%a 2019 App -^> %%a%_ons% Licenses
-  echo.
-  call :InsLic %%a%_tag%
-  )
-)
-for %%a in (Access) do if !_%%a! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_Professional2021! EQU 0 if !_Professional2019! EQU 0 if !_Professional! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 (
-  echo %%a 2016 App -^> %%a%_ons% Licenses
-  echo.
-  call :InsLic %%a%_tag%
-  )
-)
-for %%a in (SkypeforBusiness) do if !_%%a2021! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 (
-  echo %%a 2021 App
-  echo.
-  call :InsLic %%a2021
-  )
-)
-for %%a in (SkypeforBusiness) do if !_%%a2019! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_%%a2021! EQU 0 (
-  echo %%a 2019 App -^> %%a%_ons% Licenses
-  echo.
-  call :InsLic %%a%_tag%
-  )
-)
-for %%a in (SkypeforBusiness) do if !_%%a! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus2021! EQU 0 if !_ProPlus2019! EQU 0 if !_ProPlus! EQU 0 if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 (
-  echo %%a 2016 App -^> %%a%_ons% Licenses
-  echo.
-  call :InsLic %%a%_tag%
-  )
-)
-if %_Office15% EQU 1 (goto :R15V) else (goto :GVLKC2R)
+
+:endRV16
+if %_Office15% EQU 0 goto :GVLKC2R
 
 :R15V
-set _O15Ids=Standard,ProjectPro,VisioPro,ProjectStd,VisioStd,Access,Lync
-set _A15Ids=Excel,Groove,InfoPath,OneNote,Outlook,PowerPoint,Publisher,Word
-set _R15Ids=SPD,Mondo,%_O15Ids%,%_A15Ids%,Professional,HomeBusiness,HomeStudent,O365ProPlus,O365Business,O365SmallBusPrem,O365HomePrem
-set _V15Ids=Mondo,%_O15Ids%,%_A15Ids%
+set _S15ID=Mondo,Standard
+set _P15ID=ProjectPro,ProjectStd
+set _I15ID=VisioPro,VisioStd
+set _A15ID=Excel,Groove,InfoPath,OneNote,Outlook,PowerPoint,Publisher,Word
+set _E15ID=Access,Lync
+set _V15ID=%_S15ID%,%_A15ID%,%_E15ID%,%_P15ID%,%_I15ID%
+set _R15ID=%_V15ID%,SPD,Professional,HomeBusiness,HomeStudent,%_SubID%
 
 echo %_Product15Ids%>"!_temp!\crvProduct15s.txt"
-for %%a in (%_R15Ids%,ProPlus) do (
+for %%a in (%_R15ID%,ProPlus) do (
 set _%%a=0
 )
-for %%a in (%_R15Ids%) do (
+for %%a in (%_R15ID%) do (
 findstr /I /C:"%%aRetail" "!_temp!\crvProduct15s.txt" %_Nul1% && set _%%a=1
 )
-for %%a in (%_V15Ids%) do (
+for %%a in (%_V15ID%) do (
 findstr /I /C:"%%aVolume" "!_temp!\crvProduct15s.txt" %_Nul1% && (
   find /i "Office%%aVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (set _%%a=0&set _C15Vol=1) || (set _%%a=1)
   )
@@ -741,36 +687,35 @@ reg query %_PR15IDs%\Active\ProPlusRetail\x-none %_Nul3% && (
 reg query %_PR15IDs%\Active\ProPlusVolume\x-none %_Nul3% && (
   find /i "OfficeProPlusVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (set _ProPlus=0&set _C15Vol=1) || (set _ProPlus=1)
 )
-if %_Retail% EQU 1 for %%a in (%_R15Ids%) do (
+if %_Retail% EQU 1 for %%a in (%_R15ID%) do (
 findstr /I /C:"%%aRetail" "!_temp!\crvProduct15s.txt" %_Nul1% && (
-  find /i "Office%%aR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office%%aR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office%%aR_Sub" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office%%aR_PIN" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office%%aMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office%%aO365R_" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office%%aCO365R_" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
-  find /i "Office%%aVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && set _%%a=0
+  find /i "Office%%aR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office%%aR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office%%aR_Sub" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office%%aR_PIN" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office%%aMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office%%aO365R_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office%%aCO365R_" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
+  find /i "Office%%aVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && (set _%%a=0)
   )
 )
 if %_Retail% EQU 1 reg query %_PR15IDs%\Active\ProPlusRetail\x-none %_Nul3% && (
-  find /i "OfficeProPlusR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
-  find /i "OfficeProPlusR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
-  find /i "OfficeProPlusMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
-  find /i "OfficeProPlusVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && set _ProPlus=0
+  find /i "OfficeProPlusR_Retail" "!_temp!\crvRetail.txt" %_Nul1% && (set _ProPlus=0)
+  find /i "OfficeProPlusR_OEM" "!_temp!\crvRetail.txt" %_Nul1% && (set _ProPlus=0)
+  find /i "OfficeProPlusMSDNR_" "!_temp!\crvRetail.txt" %_Nul1% && (set _ProPlus=0)
+  find /i "OfficeProPlusVL_MAK" "!_temp!\crvRetail.txt" %_Nul1% && (set _ProPlus=0)
 )
-call :qrQuery %_spp% "ApplicationID='%_oApp%' AND LicenseFamily LIKE 'OfficeO365%%%%'" LicenseFamily
+call :qrQuery %_spp% "ApplicationID='%_oApp%' AND LicenseFamily like 'OfficeO365%%%%'" LicenseFamily
 find /i "OfficeMondoVL_KMS_Client" "!_temp!\crvVolume.txt" %_Nul1% && (
 %_qr% %_Nul2% | find /i "O365" %_Nul1% && (
-  for %%a in (O365ProPlus,O365Business,O365SmallBusPrem,O365HomePrem) do set _%%a=0
+  for %%a in (%_SubID%) do set _%%a=0
   )
 )
 
-if %_Cnvrt% NEQ 1 (set "msg=Finished"&goto :TheEnd)
+if %_Cnvrt% NEQ 1 (set "msg=Finished"&goto :%_fC2R%)
 
-for %%a in (%_R15Ids%,ProPlus) do if !_%%a! EQU 1 (
-set _C15Msg=1
-set _C15Vol=1
+for %%a in (%_R15ID%,ProPlus) do if !_%%a! EQU 1 (
+set _C15Msg=1&set _C15Vol=1
 )
 if %_C15Msg% EQU 1 if %_C16Msg% EQU 0 (
 echo.
@@ -779,7 +724,7 @@ echo Installing Office Volume Licenses...
 echo %_ln%
 echo.
 )
-if %_C15Msg% EQU 0 goto :GVLKC2R
+if %_C15Msg% EQU 0 goto :endRV15
 
 set "_arr="
 for %%# in ("!_Licenses15Path!\client-issuance-*.xrm-ms") do (
@@ -790,102 +735,89 @@ if %WMI_PS% NEQ 0 (
   )
 )
 if %WMI_PS% NEQ 0 (
-  %_Nul3% %_psc% "$Sls='%_sps%'; $Ver='%_wmi%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); InstallLicenseArr '!_arr!'; InstallLicenseFile '"!_Licenses15Path!\pkeyconfig-office.xrm-ms"'"
+  %_Nul3% %_psc% "$sls='%_sps%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); InstallLicenseArr '!_arr!'; InstallLicenseFile '"!_Licenses15Path!\pkeyconfig-office.xrm-ms"'"
   ) else (
   %_cscript% %_vbsi%"!_Licenses15Path!\pkeyconfig-office.xrm-ms"
   )
 
+set _jump=0
+set _DidO365=0
 if !_Mondo! EQU 1 (
 call :Ins15Lic Mondo
 )
 if !_O365ProPlus! EQU 1 if !_O16O365! EQU 0 (
+set _DidO365=1
 echo O365ProPlus 2013 Suite ^<-^> Mondo 2013 Licenses
-echo.
 call :Ins15Lic O365ProPlus DRNV7-VGMM2-B3G9T-4BF84-VMFTK
 if !_Mondo! EQU 0 call :Ins15Lic Mondo
 )
-if !_O365SmallBusPrem! EQU 1 if !_O365ProPlus! EQU 0 if !_O16O365! EQU 0 (
-set _O365ProPlus=1
+if !_O365SmallBusPrem! EQU 1 if !_O16O365! EQU 0 if !_DidO365! EQU 0 (
+set _DidO365=1
 echo O365SmallBusPrem 2013 Suite ^<-^> Mondo 2013 Licenses
-echo.
 call :Ins15Lic O365SmallBusPrem 3FBRX-NFP7C-6JWVK-F2YGK-H499R
 if !_Mondo! EQU 0 call :Ins15Lic Mondo
 )
-if !_O365HomePrem! EQU 1 if !_O365SmallBusPrem! EQU 0 if !_O365ProPlus! EQU 0 if !_O16O365! EQU 0 (
-set _O365ProPlus=1
+if !_O365HomePrem! EQU 1 if !_O16O365! EQU 0 if !_DidO365! EQU 0 (
+set _DidO365=1
 echo O365HomePrem 2013 Suite ^<-^> Mondo 2013 Licenses
-echo.
 call :Ins15Lic O365HomePrem 9FNY8-PWWTY-8RY4F-GJMTV-KHGM9
 if !_Mondo! EQU 0 call :Ins15Lic Mondo
 )
-if !_O365Business! EQU 1 if !_O365HomePrem! EQU 0 if !_O365SmallBusPrem! EQU 0 if !_O365ProPlus! EQU 0 if !_O16O365! EQU 0 (
-set _O365ProPlus=1
+if !_O365Business! EQU 1 if !_O16O365! EQU 0 if !_DidO365! EQU 0 (
+set _DidO365=1
 echo O365Business 2013 Suite ^<-^> Mondo 2013 Licenses
-echo.
 call :Ins15Lic O365Business MCPBN-CPY7X-3PK9R-P6GTT-H8P8Y
 if !_Mondo! EQU 0 call :Ins15Lic Mondo
 )
-if !_Mondo! EQU 1 if !_O365ProPlus! EQU 0 if !_O16O365! EQU 0 (
+if !_DidO365! EQU 1 set _jump=1
+if !_Mondo! EQU 1 if !_O16O365! EQU 0 if !_DidO365! EQU 0 (
 echo Mondo 2013 Suite
-echo.
 call :Ins15Lic O365ProPlus DRNV7-VGMM2-B3G9T-4BF84-VMFTK
-goto :GVLKC2R
+goto :endRV15
 )
-if !_SPD! EQU 1 if !_Mondo! EQU 0 if !_O365ProPlus! EQU 0 (
-echo SharePoint Designer 2013 App -^> Mondo 2013 Licenses
-echo.
-call :Ins15Lic Mondo
-goto :GVLKC2R
+
+for %%a in (%_P15ID%,%_I15ID%) do (
+  if !_%%a! EQU 1 (echo %%a 2013 SKU&call :Ins15Lic %%a)
 )
-if !_ProPlus! EQU 1 if !_O365ProPlus! EQU 0 (
-echo ProPlus 2013 Suite
-echo.
-call :Ins15Lic ProPlus
+
+if !_Mondo! EQU 0 if !_DidO365! EQU 0 for %%a in (SPD) do (
+  if !_%%a! EQU 1 (set _jump=1&echo SharePoint Designer 2013 App -^> Mondo 2013 Licenses&call :Ins15Lic Mondo)
 )
-if !_Professional! EQU 1 if !_O365ProPlus! EQU 0 if !_ProPlus! EQU 0 (
-echo Professional 2013 Suite -^> ProPlus 2013 Licenses
-echo.
-call :Ins15Lic ProPlus
+if !_jump! EQU 1 goto :endRV15
+
+for %%a in (ProPlus) do (
+  if !_%%a! EQU 1 (set _jump=1&echo %%a 2013 Suite&call :Ins15Lic %%a)
 )
-if !_Standard! EQU 1 if !_O365ProPlus! EQU 0 if !_ProPlus! EQU 0 if !_Professional! EQU 0 (
-echo Standard 2013 Suite
-echo.
-call :Ins15Lic Standard
+if !_jump! EQU 1 goto :endRV15
+
+for %%a in (Professional) do (
+  if !_%%a! EQU 1 (set _jump=1&echo %%a 2013 Suite -^> ProPlus 2013 Licenses&call :Ins15Lic ProPlus)
 )
-for %%a in (ProjectPro,VisioPro,ProjectStd,VisioStd) do if !_%%a! EQU 1 (
-echo %%a 2013 SKU
-echo.
-call :Ins15Lic %%a
+if !_jump! EQU 1 goto :endRV15
+
+for %%a in (Lync) do (
+  if !_%%a! EQU 1 (echo SkypeforBusiness 2015 App&call :Ins15Lic %%a)
 )
-for %%a in (HomeBusiness,HomeStudent) do if !_%%a! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus! EQU 0 if !_Professional! EQU 0 if !_Standard! EQU 0 (
-  set _Standard=1
-  echo %%a 2013 Suite -^> Standard 2013 Licenses
-  echo.
-  call :Ins15Lic Standard
-  )
+
+for %%a in (Access) do (
+  if !_%%a! EQU 1 (echo %%a 2013 App&call :Ins15Lic %%a)
 )
-for %%a in (%_A15Ids%) do if !_%%a! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus! EQU 0 if !_Professional! EQU 0 if !_Standard! EQU 0 (
-  echo %%a 2013 App
-  echo.
-  call :Ins15Lic %%a
-  )
+
+for %%a in (Standard) do (
+  if !_%%a! EQU 1 (set _jump=1&echo %%a 2013 Suite&call :Ins15Lic %%a)
 )
-for %%a in (Access) do if !_%%a! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus! EQU 0 if !_Professional! EQU 0 (
-  echo %%a 2013 App
-  echo.
-  call :Ins15Lic %%a
-  )
+if !_jump! EQU 1 goto :endRV15
+
+for %%a in (HomeBusiness,HomeStudent) do (
+  if !_%%a! EQU 1 (set _jump=1&echo %%a 2013 Suite -^> Standard 2013 Licenses&call :Ins15Lic Standard)
 )
-for %%a in (Lync) do if !_%%a! EQU 1 (
-if !_O365ProPlus! EQU 0 if !_ProPlus! EQU 0 (
-  echo SkypeforBusiness 2015 App
-  echo.
-  call :Ins15Lic %%a
-  )
+if !_jump! EQU 1 goto :endRV15
+
+for %%a in (%_A15ID%) do (
+  if !_%%a! EQU 1 (echo %%a 2013 App&call :Ins15Lic %%a)
 )
+
+:endRV15
 goto :GVLKC2R
 
 :InsLic
@@ -940,7 +872,7 @@ if %WMI_PS% NEQ 0 (
   )
 )
 if %WMI_PS% NEQ 0 (
-  %_Nul3% %_psc% "$Sls='%_sps%'; $Ver='%_wmi%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); InstallLicenseArr '!_arr!'"
+  %_Nul3% %_psc% "$sls='%_sps%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); InstallLicenseArr '!_arr!'"
   )
 call :qrPKey %_sps% %_wmi% %_kpey%
 if defined _kpey %_qr% %_Nul3%
@@ -972,7 +904,7 @@ if %WMI_PS% NEQ 0 (
   )
 )
 if %WMI_PS% NEQ 0 (
-  %_Nul3% %_psc% "$Sls='%_sps%'; $Ver='%_wmi%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); InstallLicenseArr '!_arr!'"
+  %_Nul3% %_psc% "$sls='%_sps%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); InstallLicenseArr '!_arr!'"
   )
 call :qrPKey %_sps% %_wmi% %_pkey%
 if defined _pkey %_qr% %_Nul3%
@@ -995,18 +927,18 @@ echo.
 )
 call :qrMethod %_sps% Version %_wmi% RefreshLicenseStatus
 if %winbuild% GEQ 9200 %_qr% %_Nul3%
-for %%# in (15,16,19,21) do call :C2RLoc %%#
+for %%# in (15,16,19,21,24) do call :C2RLoc %%#
 if %_Retail% EQU 0 (
 for %%# in (15) do if !_Loc%%#! EQU 0 call :C2Runi %%#
 )
 if %_Retail% EQU 0 if %sub_o365% EQU 0 if %sub_proj% EQU 0 if %sub_vsio% EQU 0 (
-for %%# in (16,19,21) do if !_Loc%%#! EQU 0 call :C2Runi %%#
+for %%# in (16,19,21,24) do if !_Loc%%#! EQU 0 call :C2Runi %%#
 )
 if %_C15Vol% EQU 1 (
 for %%# in (15) do if !_Loc%%#! EQU 1 call :C2Rins %%#
 )
 if %_C16Vol% EQU 1 (
-for %%# in (16,19,21) do if !_Loc%%#! EQU 1 call :C2Rins %%#
+for %%# in (16,19,21,24) do if !_Loc%%#! EQU 1 call :C2Rins %%#
 )
 call :qrMethod %_sps% Version %_wmi% RefreshLicenseStatus
 if %winbuild% GEQ 9200 %_qr% %_Nul3%
@@ -1017,15 +949,14 @@ echo Refreshing Windows Insider Preview Licenses...
 echo %_ln%
 echo.
 if %WMI_PS% NEQ 0 (
-  %_Nul3% %_psc% "$Sls='%_sps%'; $Ver='%_wmi%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); ReinstallLicenses"
-  if !ERRORLEVEL! NEQ 0 %_Nul3% %_psc% "$Sls='%_sps%'; $Ver='%_wmi%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); ReinstallLicenses"
+  %_Nul3% %_psc% "$sls='%_sps%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); ReinstallLicenses"
+  if !ERRORLEVEL! NEQ 0 %_Nul3% %_psc% "$sls='%_sps%'; $f=[IO.File]::ReadAllText('!_batp!') -split ':embdxrm\:.*'; iex ($f[1]); ReinstallLicenses"
   ) else (
   %_cscript% %_SLMGR% /rilc
   if !ERRORLEVEL! NEQ 0 %_cscript% %_SLMGR% /rilc
   )
 )
-set "msg=Finished"
-goto :TheEnd
+set "msg=Finished"&goto :%_fC2R%
 
 :C2Runi
 call :qrQuery %_spp% "Name LIKE 'Office %~1%%%%' AND PartialProductKey is not NULL" ID
@@ -1047,17 +978,25 @@ if %1 EQU 21 (
 if defined _ProductIds reg query %_Config% /v ProductReleaseIds %_Nul2% | findstr 2021 %_Nul1% && set _Loc%1=1
 exit /b
 )
+if %1 EQU 24 (
+if defined _ProductIds reg query %_Config% /v ProductReleaseIds %_Nul2% | findstr 2024 %_Nul1% && set _Loc%1=1
+exit /b
+)
 
-for /f "skip=2 tokens=2*" %%a in ('"reg query %_onat%\%1.0\Common\InstallRoot /v Path" %_Nul6%') do if exist "%%b\EntityPicker.dll" set _Loc%1=1
-for /f "skip=2 tokens=2*" %%a in ('"reg query %_owow%\%1.0\Common\InstallRoot /v Path" %_Nul6%') do if exist "%%b\EntityPicker.dll" set _Loc%1=1
+for /f "skip=2 tokens=2*" %%a in ('"reg query %_onat%\%1.0\Common\InstallRoot /v Path" %_Nul6%') do if exist "%%b\EntityPicker.dll" (
+set _Loc%1=1
+)
+for /f "skip=2 tokens=2*" %%a in ('"reg query %_owow%\%1.0\Common\InstallRoot /v Path" %_Nul6%') do if exist "%%b\EntityPicker.dll" (
+set _Loc%1=1
+)
 
 if %1 EQU 16 if defined _ProductIds (
 for /f "skip=2 tokens=2*" %%a in ('reg query %_Config% /v ProductReleaseIds') do echo %%b>"!_temp!\crvO16.txt"
-for %%a in (%_R16Ids%) do (
-  findstr /I /C:"%%aRetail" "!_temp!\crvO16.txt" %_Nul1% && set _Loc%1=1
-  )
-for %%a in (%_V16Ids%,ProjectProX,ProjectStdX,VisioProX,VisioStdX) do (
+for %%a in (%_V16ID%,ProjectProX,ProjectStdX,VisioProX,VisioStdX) do (
   findstr /I /C:"%%aVolume" "!_temp!\crvO16.txt" %_Nul1% && set _Loc%1=1
+  )
+for %%a in (%_V16ID%,%_R16ID%) do (
+  findstr /I /C:"%%aRetail" "!_temp!\crvO16.txt" %_Nul1% && set _Loc%1=1
   )
 reg query %_PRIDs%\ProPlusRetail.16 %_Nul3% && set _Loc%1=1
 reg query %_PRIDs%\ProPlusVolume.16 %_Nul3% && set _Loc%1=1
@@ -1083,15 +1022,11 @@ set sub_vsio=0
 set _Identity=0
 dir /b /s /a:-d "!_Local!\Microsoft\Office\Licenses\*" %_Nul3% && (set _Identity=1&set sub_next=1)
 dir /b /s /a:-d "!ProgramData!\Microsoft\Office\Licenses\*" %_Nul3% && (set _Identity=1&set sub_next=1)
-set _chksub=0
-if %_Identity% EQU 0 (
-reg query %kNext% /v MigrationToV5Done %_Nul2% | find /i "0x1" %_Nul1% && set _chksub=1
-reg query %kNext% /v MigrationToV6Done %_Nul2% | find /i "0x1" %_Nul1% && set _chksub=1
-)
-if %_chksub% EQU 1 call :officeSub
+if %_Identity% EQU 0 call :officeSub
 exit /b
 
 :officeSub
+reg query %kNext% %_Nul3% || exit /b
 reg query %kNext% | findstr /i /r ".*retail" %_Nul2% | findstr /i /v "project visio" %_Nul2% | find /i "0x2" %_Nul1% && (set sub_o365=1)
 reg query %kNext% | findstr /i /r ".*retail" %_Nul2% | findstr /i /v "project visio" %_Nul2% | find /i "0x3" %_Nul1% && (set sub_o365=1)
 reg query %kNext% | findstr /i /r ".*volume" %_Nul2% | findstr /i /v "project visio" %_Nul2% | find /i "0x2" %_Nul1% && (set sub_o365=1)
@@ -1111,14 +1046,17 @@ call :qrMethod %_spp% ID %aID% UninstallProductKey
 exit /b
 
 :InsKey
-if /i '%aID%' EQU 'f3fb2d68-83dd-4c8b-8f09-08e0d950ac3b' exit /b
-if /i '%aID%' EQU '76093b1b-7057-49d7-b970-638ebcbfd873' exit /b
-if /i '%aID%' EQU 'a3b44174-2451-4cd6-b25f-66638bfb9046' exit /b
-if /i '%aID%' EQU '1dc00701-03af-4680-b2af-007ffc758a1f' exit /b
-if /i '%aID%' EQU '0bc88885-718c-491d-921f-6f214349e79c' exit /b
-if /i '%aID%' EQU 'fc7c4d0c-2e85-4bb9-afd4-01ed1476b5e9' exit /b
-if /i '%aID%' EQU '500f6619-ef93-4b75-bcb4-82819998a3ca' exit /b
-if /i '%aID%' EQU 'e914ea6e-a5fa-4439-a394-a9bb3293ca09' exit /b
+set _eof=0
+for %%A in (
+fceda083-1203-402a-8ec4-3d7ed9f3648c,aaea0dc8-78e1-4343-9f25-b69b83dd1bce,4ab4d849-aabc-43fb-87ee-3aed02518891
+f3fb2d68-83dd-4c8b-8f09-08e0d950ac3b,76093b1b-7057-49d7-b970-638ebcbfd873,a3b44174-2451-4cd6-b25f-66638bfb9046
+0bc88885-718c-491d-921f-6f214349e79c,fc7c4d0c-2e85-4bb9-afd4-01ed1476b5e9,500f6619-ef93-4b75-bcb4-82819998a3ca
+e914ea6e-a5fa-4439-a394-a9bb3293ca09
+1dc00701-03af-4680-b2af-007ffc758a1f
+) do (
+if /i "%aID%" EQU "%%A" set _eof=1
+)
+if %_eof% EQU 1 exit /b
 set "_key="
 call :qrQuery %_spp% "ID='%aID%'" LicenseFamily
 for /f "tokens=2 delims==" %%# in ('%_qr%') do echo %%#
@@ -1137,6 +1075,55 @@ exit /b
 :keys
 if "%~1"=="" exit /b
 goto :%1 %_Nul2%
+
+:: Office 2024
+:8d368fc1-9470-4be2-8d66-90e836cbb051
+set "_key=NBBBB-BBBBB-BBBBB-BBBJD-VXRPM" &:: Professional Plus
+exit /b
+
+:bbac904f-6a7e-418a-bb4b-24c85da06187
+set "_key=V28N4-JG22K-W66P8-VTMGK-H6HGR" &:: Standard
+exit /b
+
+:f510af75-8ab7-4426-a236-1bfb95c34ff8
+set "_key=NBBBB-BBBBB-BBBBB-BBBH4-GX3R4" &:: Project Professional
+exit /b
+
+:9f144f27-2ac5-40b9-899d-898c2b8b4f81
+set "_key=PD3TT-NTHQQ-VC7CY-MFXK3-G87F8" &:: Project Standard
+exit /b
+
+:fa187091-8246-47b1-964f-80a0b1e5d69a
+set "_key=NBBBB-BBBBB-BBBBB-BBBCW-6MX6T" &:: Visio Professional
+exit /b
+
+:923fa470-aa71-4b8b-b35c-36b79bf9f44b
+set "_key=JMMVY-XFNQC-KK4HK-9H7R3-WQQTV" &:: Visio Standard
+exit /b
+
+:72e9faa7-ead1-4f3d-9f6e-3abc090a81d7
+set "_key=82FTR-NCHR7-W3944-MGRHM-JMCWD" &:: Access
+exit /b
+
+:cbbba2c3-0ff5-4558-846a-043ef9d78559
+set "_key=F4DYN-89BP2-WQTWJ-GR8YC-CKGJG" &:: Excel
+exit /b
+
+:bef3152a-8a04-40f2-a065-340c3f23516d
+set "_key=D2F8D-N3Q3B-J28PV-X27HD-RJWB9" &:: Outlook
+exit /b
+
+:b63626a4-5f05-4ced-9639-31ba730a127e
+set "_key=CW94N-K6GJH-9CTXY-MG2VC-FYCWP" &:: PowerPoint
+exit /b
+
+:0002290a-2091-4324-9e53-3cfe28884cde
+set "_key=4NKHF-9HBQF-Q3B6C-7YV34-F64P3" &:: Skype for Business
+exit /b
+
+:d0eded01-0881-4b37-9738-190400095098
+set "_key=MQ84N-7VYDM-FXV7C-6K7CC-VFW9J" &:: Word
+exit /b
 
 :: Office 2021
 :fbdb3e18-a8ef-4fb3-9183-dffd60bd0984
@@ -1326,6 +1313,10 @@ set "_key=WXY84-JN2Q9-RBCCQ-3Q3J3-3PFJ6" &:: Word
 exit /b
 
 :: Office 2013
+:1dc00701-03af-4680-b2af-007ffc758a1f
+set "_key=CWH2Y-NPYJW-3C7HD-BJQWB-G28JJ" &:: MondoR
+exit /b
+
 :dc981c6b-fc8e-420f-aa43-f8f33e5c0923
 set "_key=42QTK-RN8M7-J3C4G-BBGYM-88CYV" &:: Mondo
 exit /b
@@ -1424,9 +1415,10 @@ UninstallLicenses "sppc.dll"
 :embdbin:
 
 :embdxrm:
+$wmi = Get-WmiObject $sls
 function InstallLicenseFile($Lsc) {
     try {
-        $null = ([WMI]"$Sls='$Ver'").InstallLicense([IO.File]::ReadAllText($Lsc))
+        $null = $wmi.InstallLicense([IO.File]::ReadAllText($Lsc))
     } catch {
         $host.SetShouldExit($_.Exception.HResult)
     }
