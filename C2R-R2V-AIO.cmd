@@ -1,6 +1,6 @@
 <!-- : Begin batch script
 @setlocal DisableDelayedExpansion
-@set uivr=v20
+@set uivr=v20u
 @echo off
 
 :: change to 0 to keep Office C2R vNext license (subscription or lifetime)
@@ -59,7 +59,7 @@ set winbuild=1
 for /f "tokens=6 delims=[]. " %%# in ('ver') do set winbuild=%%#
 set _cwmi=0
 for %%# in (wmic.exe) do @if not "%%~$PATH:#"=="" (
-wmic path Win32_ComputerSystem get CreationClassName /value 2>nul | find /i "ComputerSystem" 1>nul && set _cwmi=1
+cmd /c "wmic path Win32_ComputerSystem get CreationClassName /value" 2>nul | find /i "ComputerSystem" 1>nul && set _cwmi=1
 )
 set _pwsh=1
 for %%# in (powershell.exe) do @if "%%~$PATH:#"=="" set _pwsh=0
@@ -1078,7 +1078,7 @@ goto :%1 %_Nul2%
 
 :: Office 2024
 :8d368fc1-9470-4be2-8d66-90e836cbb051
-set "_key=NBBBB-BBBBB-BBBBB-BBBJD-VXRPM" &:: Professional Plus
+set "_key=XJ2XN-FW8RK-P4HMP-DKDBV-GCVGB" &:: Professional Plus
 exit /b
 
 :bbac904f-6a7e-418a-bb4b-24c85da06187
@@ -1086,7 +1086,7 @@ set "_key=V28N4-JG22K-W66P8-VTMGK-H6HGR" &:: Standard
 exit /b
 
 :f510af75-8ab7-4426-a236-1bfb95c34ff8
-set "_key=NBBBB-BBBBB-BBBBB-BBBH4-GX3R4" &:: Project Professional
+set "_key=FQQ23-N4YCY-73HQ3-FM9WC-76HF4" &:: Project Professional
 exit /b
 
 :9f144f27-2ac5-40b9-899d-898c2b8b4f81
@@ -1094,7 +1094,7 @@ set "_key=PD3TT-NTHQQ-VC7CY-MFXK3-G87F8" &:: Project Standard
 exit /b
 
 :fa187091-8246-47b1-964f-80a0b1e5d69a
-set "_key=NBBBB-BBBBB-BBBBB-BBBCW-6MX6T" &:: Visio Professional
+set "_key=B7TN8-FJ8V3-7QYCP-HQPMV-YY89G" &:: Visio Professional
 exit /b
 
 :923fa470-aa71-4b8b-b35c-36b79bf9f44b
