@@ -1,6 +1,6 @@
 <!-- : Begin batch script
 @setlocal DisableDelayedExpansion
-@set uivr=v20u
+@set uivr=v21
 @echo off
 
 :: change to 0 to keep Office C2R vNext license (subscription or lifetime)
@@ -658,6 +658,16 @@ for %%a in (OneNote) do (
 )
 
 :endRV16
+set _doPublisher=0
+if !_ProPlus2024! EQU 1 set _doPublisher=1
+if !_Professional2024! EQU 1 set _doPublisher=1
+if !_Standard2024! EQU 1 set _doPublisher=1
+if !_DidO365! EQU 1 set _doPublisher=0
+if !_doPublisher! EQU 1 for %%a in (Publisher) do (
+  if !_%%a2021! EQU 1 (echo %%a 2021 App&call :InsLic %%a2021)
+  if !_%%a2021! EQU 0 if !_%%a2019! EQU 1 (echo %%a 2019 App -^> %%a%_ons% Licenses&call :InsLic %%a%_tag%)
+  if !_%%a2021! EQU 0 if !_%%a2019! EQU 0 if !_%%a! EQU 1 (echo %%a 2016 App -^> %%a%_ons% Licenses&call :InsLic %%a%_tag%)
+)
 if %_Office15% EQU 0 goto :GVLKC2R
 
 :R15V
