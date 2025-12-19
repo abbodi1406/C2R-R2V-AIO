@@ -1,7 +1,7 @@
-# Office Click-to-Run Retail-to-Volume AIO
+# Office Click-to-Run Retail-to-Volume
 
-- A standalone fork of C2R-R2V,  
-where cleanospp.exe is embedded in the script and get extracted upon execution using powershell,  
+- A standalone fork of old `C2R-R2V.cmd`,  
+where CleanOffice.ps1 and xrm.ps1 are embedded in the script and get executed using powershell,  
 which makes it easier to move and distribute the script alone
 
 - Convert already-installed Office ClickToRun licensing from Retail to Volume
@@ -34,18 +34,22 @@ also, corresponding Office 365 Retail Grace Key will be installed
 - If main products Suites are detected, single apps licenses will not be installed to avoid duplication
 
 - Suites:  
+```
 O365ProPlus, O365Business, O365SmallBusPrem, O365HomePrem, O365EduCloud  
 ProPlus, Professional, Standard, HomeBusiness, HomeStudent, Visio, Project
-
+```
 - Apps:  
+```
 Access, Excel, InfoPath, Onenote, Outlook, PowerPoint, Publisher, SkypeForBusiness, Word, Groove (OneDrive for Business)
+```
 
-- Suites <> Apps inclusion:  
-O365ProPlus, O365Business, O365SmallBusPrem, ProPlus: all apps  
-O365HomePrem, Professional: all apps except SkypeForBusiness  
-Standard: all apps except Access, SkypeForBusiness  
-HomeBusiness: Excel, OneNote, PowerPoint, Word, Outlook  
-HomeStudent, O365EduCloud: Excel, OneNote, PowerPoint, Word
+- Suites <> Apps inclusion:
+
+O365ProPlus, O365Business, O365SmallBusPrem, ProPlus: ==all apps==  
+O365HomePrem, Professional: ==all apps except SkypeForBusiness==  
+Standard: ==all apps except Access, SkypeForBusiness==  
+HomeBusiness: ==Excel, OneNote, PowerPoint, Word, Outlook==  
+HomeStudent, Home2024, O365EduCloud: ==Excel, OneNote, PowerPoint, Word==
 
 ## Remarks
 
@@ -63,22 +67,26 @@ HomeStudent, O365EduCloud: Excel, OneNote, PowerPoint, Word
 to workaround that, use the following steps
 
 - If you want Office Professional Plus:  
+```
 1) install Office 2016 SKU ProPlusRetail  
 2) run C2R-R2V-AIO.cmd
+```
 
 - Additionally, if you want Project and/or Visio:  
+```
 1) install desired Office 2016 SKU: ProjectProRetail, ProjectStdRetail, VisioProRetail, VisioStdRetail  
 2) run C2R-R2V-AIO.cmd
+```
 
 ## Manual advanced options:
 
 - To run the process in debug mode "with" conversion  
-edit C2R-R2V-AIO.cmd and set _Debug=1
+edit C2R-R2V-AIO.cmd and `set _Debug=1`
 
 - To run the process in debug mode "without" conversion  
-edit C2R-R2V-AIO.cmd and set _Cnvrt=0
+edit C2R-R2V-AIO.cmd and `set _Cnvrt=0`
 
-## Credits
+## Special Thanks
 
 - @Windows_Addict / Features suggestion, testing and co-enhancing  
 - @AveYo          / [Compressed2TXT](https://github.com/AveYo/Compressed2TXT)  
